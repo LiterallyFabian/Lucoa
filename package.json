@@ -1,0 +1,22 @@
+{
+  "name": "lucoa",
+  "version": "1.0.0",
+  "description": "Creates videos of Lucoa with osu! beatmaps.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "dragon",
+    "maid",
+    "maidragon",
+    "lucoa",
+    "flute",
+    "osu!"
+  ],
+  "author": "LiterallyFabian",
+  "license": "ISC",
+  "dependencies": {
+    "ffmpeg": "0.0.4"
+  }
+}
