@@ -23,8 +23,13 @@ fs.readFile(beatmapPath, "utf8", (err, map) => {
 })
 
 function makeVideo(map, audio) {
-    var beatmapData = parseBeatmap(map);
-    console.log(beatmapData)
+    var objectDelays = parseBeatmap(map);
+    var concat = "file 'clips\\intro.mkv'\n"
+    for (var i = 1; i < objectDelays.length; i++) {
+        var diff = objectDelays[i] - objectDelays[i - 1]
+        if (!isNaN(diff)) concat += `file 'clips\\l${Math.round(diff / 100) * 100}.mkv'\n`
+    }
+    console.log(concat)
 }
 
 function parseBeatmap(beatmapLines) {
@@ -130,16 +135,16 @@ function parseObjects(beatmap) {
             //Queue slider-start fruit
             objectTimestamps.push(delay);
 
-            var dropletTiming = beatLength / 100 / sliderMultiplier * 16.8 / beatLengthMultiplier; //time between droplets
+            var dropletTiming = beatLength / 100 / sliderMultiplier/ beatLengthMultiplier; //time between droplets
             var repeats = parseInt(line[6]); //How many times the slider will repeat
             var sliderLength = parseInt(Math.round(line[7])); //How long the slider is
-            var dropletsPerRepeat = parseInt(Math.round(sliderLength / 17));
+            var dropletsPerRepeat = parseInt(Math.round(sliderLength));
             var droplets = dropletsPerRepeat * repeats; //amount of droplets slider contains
 
             var currentDrop = 0;
 
             for (var i = 0; i < droplets; i++) {
-                var dropDelay = i * dropletTiming + 20;
+                var dropDelay = i * dropletTiming;
                 if (currentDrop == dropletsPerRepeat) {
 
                     objectTimestamps.push(delay + dropDelay);
@@ -147,6 +152,8 @@ function parseObjects(beatmap) {
                 }
                 currentDrop++;
             }
+
+            
 
             //Queues slider-end fruit
             //console.log(`bl: ${beatLength} slm: ${sliderMultiplier} tot: ${beatLength / 100 / sliderMultiplier * 17} math: ${beatLength}/100*${sliderMultiplier}*17`)
