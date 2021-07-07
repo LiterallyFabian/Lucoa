@@ -339,8 +339,7 @@ ASALocalRun/
 # BeatPulse healthcheck temp database
 healthchecksdb
 
-# Scrape-data
-data/
+ffmpeg.exe
 
 #obv
 .env
