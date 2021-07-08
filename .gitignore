@@ -340,6 +340,7 @@ ASALocalRun/
 healthchecksdb
 
 ffmpeg.exe
+data/
 
 #obv
 .env
