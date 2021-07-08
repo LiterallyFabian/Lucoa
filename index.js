@@ -1,10 +1,7 @@
-var ffmpeg = require('ffmpeg');
-var spawn = require("child_process").spawn;
-var ffmpegPath = "ffmpeg.exe";
+var exec = require('child_process').exec;
 var beatmapPath = process.argv[2];
 var fileName = /[^\\]*$/.exec(beatmapPath)[0].replace(".osu", "");
 var fs = require("fs");
-var fsp = require('fs').promises;
 
 console.log(`Trying to create video of beatmap "${fileName}"...`)
 
@@ -26,26 +23,54 @@ fs.readFile(beatmapPath, "utf8", (err, map) => {
 function makeVideo(map, audio) {
     var objectDelays = parseBeatmap(map);
     var left = true;
-    var command = "-i clips\\intro.mkv ";
-
+    var command = "ffmpeg -i intro.mkv ";
+    var currentOffset = 0;
+    var length = 0;
     for (var i = 1; i < objectDelays.length; i++) {
         var diff = objectDelays[i] - objectDelays[i - 1]
         if (!isNaN(diff)) {
             var cleanDiff = Math.round(diff / 50) * 50;
+            console.log(currentOffset)
+
             if (cleanDiff < 50) cleanDiff = 50;
+
+            if (cleanDiff >= 100 && currentOffset > 50)
+                cleanDiff -= 50;
+                else if(cleanDiff >= 100 && currentOffset <-50)
+                cleanDiff += 50;
+
+
+            currentOffset += cleanDiff - diff;
+            length++;
             //not a break - add Lucoa
             if (diff <= 1000) {
-                command += `-i clips\\${left ? "L" : "R"}${cleanDiff}.mkv `
+                command += `-i ${left ? "L" : "R"}${cleanDiff}.mkv `
                 left = !left;
                 //break - show image for x seconds
             } else {
-                command += `-loop 1 -framerate 60 -t ${(diff/1000)-2.11} -i clips\\pause.jpg `
+                command += `-loop 1 -framerate 60 -t ${(diff/1000)-2.11} -i pause.jpg `
             }
+
         }
     }
 
 
-    command += `-filter_complex "[0][1][2][3]concat=n=${objectDelays.length-1}:v=1:a=0" "${fileName}.mp4"`
+    command += `-filter_complex "[0][1][2][3]concat=n=${length-1}:v=1:a=0" "../../${fileName}.mp4"`
+    
+          exec(command, {
+              cwd: __dirname + '/clips/small'
+          }, function (error, stdout, stderr) {
+              if (error) {
+                  console.log(`error: ${error.message}`);
+                  return;
+              }
+              if (stderr) {
+                  console.log(`stderr: ${stderr}`);
+                  return;
+              }
+              console.log(`stdout: ${stdout}`);
+          });
+          
 }
 
 
