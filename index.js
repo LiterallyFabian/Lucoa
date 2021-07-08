@@ -4,6 +4,7 @@ var ffmpegPath = "ffmpeg.exe";
 var beatmapPath = process.argv[2];
 var fileName = /[^\\]*$/.exec(beatmapPath)[0];
 var fs = require("fs");
+var fsp = require('fs').promises;
 
 console.log(`Trying to create video of beatmap "${fileName}"...`)
 
@@ -22,15 +23,46 @@ fs.readFile(beatmapPath, "utf8", (err, map) => {
     }
 })
 
-function makeVideo(map, audio) {
+async function makeVideo(map, audio) {
     var objectDelays = parseBeatmap(map);
+    var path = `data\\${Math.random().toString(36).substring(7)}`;
+    var left = true;
     var concat = "file 'clips\\intro.mkv'\n"
+    var lists = 0;
+    await fsp.mkdir(path, {
+        recursive: true
+    })
+
     for (var i = 1; i < objectDelays.length; i++) {
         var diff = objectDelays[i] - objectDelays[i - 1]
-        if (!isNaN(diff)) concat += `file 'clips\\l${Math.round(diff / 100) * 100}.mkv'\n`
+        if (!isNaN(diff)) {
+            var cleanDiff = Math.round(diff / 50) * 50;
+            if (diff <= 1000) {
+                concat += `file 'clips\\${left ? "L" : "R"}${cleanDiff}.mkv'\n`
+                left = !left;
+            } else {
+                var data = concat + "file 'clips\\pauseintro.mkv'";
+                concat = "file 'clips\\pauseoutro.mkv'\n";
+
+
+                await fsp.writeFile(`${path}\\${lists++}.txt`, data, function (err) {
+                    if (err) return console.log(err);
+                    console.log('Created list.');
+                });
+            }
+        }
     }
-    console.log(concat)
+
+
+    //create final list
+    concat += "file 'clips\\pauseintro.mkv'";
+    fsp.writeFile(`${path}\\${lists++}.txt`, concat, function (err) {
+        if (err) return console.log(err);
+        console.log('Created list.');
+    });
+   
 }
+
 
 function parseBeatmap(beatmapLines) {
     var foundTiming, foundObjects = false;
@@ -135,7 +167,7 @@ function parseObjects(beatmap) {
             //Queue slider-start fruit
             objectTimestamps.push(delay);
 
-            var dropletTiming = beatLength / 100 / sliderMultiplier/ beatLengthMultiplier; //time between droplets
+            var dropletTiming = beatLength / 100 / sliderMultiplier / beatLengthMultiplier; //time between droplets
             var repeats = parseInt(line[6]); //How many times the slider will repeat
             var sliderLength = parseInt(Math.round(line[7])); //How long the slider is
             var dropletsPerRepeat = parseInt(Math.round(sliderLength));
@@ -153,7 +185,7 @@ function parseObjects(beatmap) {
                 currentDrop++;
             }
 
-            
+
 
             //Queues slider-end fruit
             //console.log(`bl: ${beatLength} slm: ${sliderMultiplier} tot: ${beatLength / 100 / sliderMultiplier * 17} math: ${beatLength}/100*${sliderMultiplier}*17`)
