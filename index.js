@@ -2,7 +2,7 @@ var ffmpeg = require('ffmpeg');
 var spawn = require("child_process").spawn;
 var ffmpegPath = "ffmpeg.exe";
 var beatmapPath = process.argv[2];
-var fileName = /[^\\]*$/.exec(beatmapPath)[0];
+var fileName = /[^\\]*$/.exec(beatmapPath)[0].replace(".osu", "");
 var fs = require("fs");
 var fsp = require('fs').promises;
 
@@ -23,44 +23,29 @@ fs.readFile(beatmapPath, "utf8", (err, map) => {
     }
 })
 
-async function makeVideo(map, audio) {
+function makeVideo(map, audio) {
     var objectDelays = parseBeatmap(map);
-    var path = `data\\${Math.random().toString(36).substring(7)}`;
     var left = true;
-    var concat = "file 'clips\\intro.mkv'\n"
-    var lists = 0;
-    await fsp.mkdir(path, {
-        recursive: true
-    })
+    var command = "-i clips\\intro.mkv ";
 
     for (var i = 1; i < objectDelays.length; i++) {
         var diff = objectDelays[i] - objectDelays[i - 1]
         if (!isNaN(diff)) {
             var cleanDiff = Math.round(diff / 50) * 50;
+            if (cleanDiff < 50) cleanDiff = 50;
+            //not a break - add Lucoa
             if (diff <= 1000) {
-                concat += `file 'clips\\${left ? "L" : "R"}${cleanDiff}.mkv'\n`
+                command += `-i clips\\${left ? "L" : "R"}${cleanDiff}.mkv `
                 left = !left;
+                //break - show image for x seconds
             } else {
-                var data = concat + "file 'clips\\pauseintro.mkv'";
-                concat = "file 'clips\\pauseoutro.mkv'\n";
-
-
-                await fsp.writeFile(`${path}\\${lists++}.txt`, data, function (err) {
-                    if (err) return console.log(err);
-                    console.log('Created list.');
-                });
+                command += `-loop 1 -framerate 60 -t ${(diff/1000)-2.11} -i clips\\pause.jpg `
             }
         }
     }
 
 
-    //create final list
-    concat += "file 'clips\\pauseintro.mkv'";
-    fsp.writeFile(`${path}\\${lists++}.txt`, concat, function (err) {
-        if (err) return console.log(err);
-        console.log('Created list.');
-    });
-   
+    command += `-filter_complex "[0][1][2][3]concat=n=${objectDelays.length-1}:v=1:a=0" "${fileName}.mp4"`
 }
 
 
