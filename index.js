@@ -29,14 +29,15 @@ function makeVideo(map, audio) {
     for (var i = 1; i < objectDelays.length; i++) {
         var diff = objectDelays[i] - objectDelays[i - 1]
         if (!isNaN(diff)) {
+            console.log(diff)
             var cleanDiff = Math.round(diff / 50) * 50;
-            console.log(currentOffset)
+
 
             if (cleanDiff < 50) cleanDiff = 50;
 
             if (cleanDiff >= 100 && currentOffset > 50)
                 cleanDiff -= 50;
-                else if(cleanDiff >= 100 && currentOffset <-50)
+            else if (cleanDiff >= 100 && currentOffset < -50)
                 cleanDiff += 50;
 
 
@@ -56,21 +57,20 @@ function makeVideo(map, audio) {
 
 
     command += `-filter_complex "[0][1][2][3]concat=n=${length-1}:v=1:a=0" "../../${fileName}.mp4"`
-    
-          exec(command, {
-              cwd: __dirname + '/clips/small'
-          }, function (error, stdout, stderr) {
-              if (error) {
-                  console.log(`error: ${error.message}`);
-                  return;
-              }
-              if (stderr) {
-                  console.log(`stderr: ${stderr}`);
-                  return;
-              }
-              console.log(`stdout: ${stdout}`);
-          });
-          
+
+    exec(command, {
+        cwd: __dirname + '/clips/small'
+    }, function (error, stdout, stderr) {
+        if (error) {
+            console.log(`error: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            console.log(`stderr: ${stderr}`);
+            return;
+        }
+        console.log(`stdout: ${stdout}`);
+    });
 }
 
 
@@ -127,7 +127,7 @@ function parseTiming(timingLines) {
             timingPoints.push({
                 type: "beatLength",
                 value: parseFloat(data[1]),
-                delay: parseFloat(data[0] - 10)
+                delay: parseFloat(data[0] - 1)
             });
 
             //queue beatLengthMultiplier
@@ -135,7 +135,7 @@ function parseTiming(timingLines) {
             timingPoints.push({
                 type: "beatLengthMultiplier",
                 value: -100 / parseFloat(data[1]),
-                delay: parseFloat(data[0] - 10)
+                delay: parseFloat(data[0] - 1)
             });
         }
     });
@@ -177,7 +177,7 @@ function parseObjects(beatmap) {
             //Queue slider-start fruit
             objectTimestamps.push(delay);
 
-            var dropletTiming = beatLength / 100 / sliderMultiplier / beatLengthMultiplier; //time between droplets
+            var dropletTiming = (beatLength / 100) / beatLengthMultiplier * sliderMultiplier; //time between droplets
             var repeats = parseInt(line[6]); //How many times the slider will repeat
             var sliderLength = parseInt(Math.round(line[7])); //How long the slider is
             var dropletsPerRepeat = parseInt(Math.round(sliderLength));
