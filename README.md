@@ -1,4 +1,4 @@
-# Lucoa.js
+# Lucoa
 ![Banner](clips/pause.jpg)
 ###### *i got too much free time*
 Random Node.js app that tries to create a video of Lucoa in rhythm to an osu! beatmap. An example can be found [here](https://youtu.be/BEmKtL-62DE).
