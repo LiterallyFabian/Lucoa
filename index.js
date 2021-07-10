@@ -168,7 +168,7 @@ function parseObjects(beatmap) {
 
         //add all objects to array
 
-        if (line.length == 427) { //line is slider
+        if (line.length > 7) { //line is slider
             //Queue slider-start fruit
             objectTimestamps.push(delay);
 
