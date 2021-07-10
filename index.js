@@ -24,42 +24,37 @@ function makeVideo(map, audio) {
     var objectDelays = parseBeatmap(map);
     var left = true;
     var command = "ffmpeg -i intro.mkv ";
-    var currentOffset = 0;
     var length = 0;
+
     for (var i = 1; i < objectDelays.length; i++) {
-        var diff = objectDelays[i] - objectDelays[i - 1]
+        var diff = objectDelays[i] - objectDelays[i - 1];
         if (!isNaN(diff)) {
-            console.log(diff)
-            var cleanDiff = Math.round(diff / 50) * 50;
+            //console.log(diff)
 
-
-            if (cleanDiff < 50) cleanDiff = 50;
-
-            if (cleanDiff >= 100 && currentOffset > 50)
-                cleanDiff -= 50;
-            else if (cleanDiff >= 100 && currentOffset < -50)
-                cleanDiff += 50;
-
-
-            currentOffset += cleanDiff - diff;
-            length++;
-            //not a break - add Lucoa
-            if (diff <= 1000) {
-                command += `-i ${left ? "L" : "R"}${cleanDiff}.mkv `
+            //break intro & outro is 2110ms
+            if (diff <= 2110) {
+                //not a break - add Lucoa
+                command += `-loop 1 -t ${((diff*0.75)/1000).toFixed(2)} -i ${left ? "L" : "R"}${Math.floor(Math.random() * 6)}.png `
+                command += `-loop 1 -t ${((diff*0.25)/1000).toFixed(2)} -i C${Math.floor(Math.random() * 6)}.png `
                 left = !left;
-                //break - show image for x seconds
+                length += 2;
+
             } else {
-                command += `-loop 1 -framerate 60 -t ${(diff/1000)-2.11} -i pause.jpg `
+                //break - show image for x seconds
+                command += `-i breakintro.mkv `
+                command += `-loop 1 -t ${(diff/1000)-2.11} -i break.png `
+                command += `-i breakoutro.mkv `
+                length += 3;
             }
 
         }
     }
 
 
-    command += `-filter_complex "[0][1][2][3]concat=n=${length-1}:v=1:a=0" "../../${fileName}.mp4"`
-
+    command += `-filter_complex "[0][1][2][3]concat=n=${length-1}:v=1:a=0" "${__dirname}/${fileName}.mkv"`
+console.log(command.length)
     exec(command, {
-        cwd: __dirname + '/clips/small'
+        cwd: __dirname + '/img/small'
     }, function (error, stdout, stderr) {
         if (error) {
             console.log(`error: ${error.message}`);
@@ -173,7 +168,7 @@ function parseObjects(beatmap) {
 
         //add all objects to array
 
-        if (line.length > 7) { //line is slider
+        if (line.length == 427) { //line is slider
             //Queue slider-start fruit
             objectTimestamps.push(delay);
 
