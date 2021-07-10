@@ -6,7 +6,7 @@ Random Node.js app that tries to create a video of Lucoa in rhythm to an osu! be
 Note that this project is not finished and will likely never be.
 
 ## To-do
-- Sync the dance better
+- Sync the dance better (parse sliders correctly)
 - Automatically add music
 - Add hitsounds
 
@@ -29,9 +29,10 @@ Your osu! beatmaps can probably be found at `C:\Users\<Username>\AppData\Local\o
 ## Briefly how it works
 - The app goes through your beatmap and makes a list of all objects
 - Calculates the difference in milliseconds between each object
-  - **diff =< 1000**
-    - A clip with the length of the difference rounded to the closest 50 gets added to a list
-    - If the global offset is too big the clip length might be modified
-  - **diff > 1000**
-     - A pause intro clip will be added to the list, then a pause image for the duration of the pause
+  - **diff <= 2110**
+    - An image of Lucoa leaning towards the opposite direction will be added for 75% of diff
+    - An image of Lucoa in the center will be added for the remaining 25%
+  - **diff > 2110**
+     - A pause intro clip will be added to the list, then a pause image for the duration of the pause minus 2110ms
+     - This is because the pause intro & outro is together 2110ms
 - Use FFmpeg to concatenate the clips added to the list to make the final video. No automatically added audio yet.
