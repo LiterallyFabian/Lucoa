@@ -1,9 +1,13 @@
+/*
+    Core parts of this script is taken from LiterallyFabian/SVB, therefore some references might be misleading.
+    https://github.com/LiterallyFabian/SVB/blob/main/app/public/catch/js/processor.js
+*/
 module.exports = function () {
     this.parseBeatmap = function (beatmapLines) {
-        var foundTiming, foundObjects = false;
+        var foundTiming, foundFruits = false;
         var beatmap = {
             sliderMultiplier: 1,
-            objectLines: [], //raw lines of all objects
+            fruitLines: [], //raw lines of all fruits
             timingLines: [], //raw lines of all timing points
         };
 
@@ -14,16 +18,16 @@ module.exports = function () {
                 if (line.includes("SliderMultiplier")) beatmap.sliderMultiplier = parseFloat(line.split(":")[1]);
                 else if (line.includes("[TimingPoints]")) foundTiming = true;
             } else {
-                if (!foundObjects) {
+                if (!foundFruits) {
                     //add all timing points
                     if (line.split(",").length > 3) {
                         beatmap.timingLines.push(line);
                     } else {
-                        if (line.includes("[HitObjects]")) foundObjects = true;
+                        if (line.includes("[HitObjects]")) foundFruits = true;
                     }
                 } else {
-                    //add all objects
-                    beatmap.objectLines.push(line);
+                    //add all fruits
+                    beatmap.fruitLines.push(line);
                 }
             }
         });
@@ -31,107 +35,116 @@ module.exports = function () {
         var timing = parseTiming(beatmap.timingLines);
         beatmap.timingPoints = timing.timingPoints;
         beatmap.beatLength = timing.beatLength;
-        var allObjects = parseObjects(beatmap);
-        return allObjects;
+        var allFruits = parseFruits(beatmap);
+        return allFruits;
     }
 
     function parseTiming(timingLines) {
-        var timingPoints = []; //parsed timing points
-        var beatLength; //default beat Length
-
+        var timingPoints = [];
+        var lastBeatLength;
+        var defaultBeatLength = -1;
         timingLines.forEach(line => {
             var data = line.split(",");
+            var time = parseInt(data[0]) - 1;
+            var beatLength = parseInt(data[1]);
+            //var meter = data[2];
+            //var sampleSet = data[3];
+            //var sampleIndex = data[4];
+            //var volume = data[5];
+            var uninherited = data[6] == 1;
+            //var kiai = data[7] == 1;
 
-            //set default beatlength
-            if (typeof beatLength == "undefined") {
-                beatLength = data[1];
-                console.log(`Default beat length set to ${beatLength} (${Math.round((1 / beatLength * 1000 * 60))} BPM)`)
 
-                //queue new beatLength
-            } else if (data[6] == 1) {
+            //set beatlengths
+            if (uninherited) {
                 timingPoints.push({
-                    type: "beatLength",
-                    value: parseFloat(data[1]),
-                    delay: parseFloat(data[0] - 1)
+                    value: beatLength,
+                    delay: time - 1
                 });
+                lastBeatLength = beatLength
+                if (defaultBeatLength == -1) {
+                    defaultBeatLength = beatLength;
+                    console.log(`Default beat length set to ${beatLength} (${Math.round(1 / beatLength * 1000 * 60)} BPM)`)
+                }
 
-                //queue beatLengthMultiplier
             } else {
                 timingPoints.push({
-                    type: "beatLengthMultiplier",
-                    value: -100 / parseFloat(data[1]),
-                    delay: parseFloat(data[0] - 1)
+                    value: lastBeatLength / (-100 / beatLength),
+                    delay: time - 1
                 });
             }
         });
-
+        if (defaultBeatLength == -1) {
+            defaultBeatLength = 500;
+            console.error(`Default beat length could not be found!`, timingLines);
+        }
         return {
-            beatLength: beatLength,
+            beatLength: defaultBeatLength,
             timingPoints: timingPoints
         };
     }
 
-    function parseObjects(beatmap) {
-        var objectTimestamps = [];
+    function parseFruits(beatmap) {
+        var allFruits = [];
         var sliderMultiplier = beatmap.sliderMultiplier;
-        var beatLength = beatmap.beatLength;
-        var beatLengthMultiplier = 1;
+        var beatLength = beatmap.defaultBeatLength;
 
-        beatmap.objectLines.forEach(line => {
-            line = line.split(",")
+        beatmap.fruitLines.forEach(line => {
+            line = line.split(",");
             var delay = parseInt(line[2]);
+            var defaultHitsound = parseInt(line[4]);
 
-            //update beatlength
-            var timing = beatmap.timingPoints.filter(obj => {
-                return obj.delay >= delay
-            });
-            if (timing[0]) {
-                if (timing[0].type == "beatLength") {
-                    beatLength = timing[0].value;
-                    // console.log(` ${delay} Beat length set to ${beatLength}`)
+            //this line is a SLIDER
+            if (line.length > 7) {
+                var overrideHitsounds = line.length > 8;
+                var sliderHitsounds = overrideHitsounds ? line[8].split("|") : [];
+                var currentHitsound = 0;
 
-                } else {
-                    beatLengthMultiplier = timing[0].value;
-                    // console.log(` ${delay} Beat length multiplier set to ${beatLengthMultiplier}`)
-                }
-            }
-
-            //add all objects to array
-
-            if (line.length > 7) { //line is slider
                 //Queue slider-start fruit
-                objectTimestamps.push(delay);
+                allFruits.push({
+                    delay: delay,
+                    hitsound: overrideHitsounds ? sliderHitsounds[currentHitsound++] : defaultHitsound
+                })
 
-                var dropletTiming = (beatLength / 100) / beatLengthMultiplier * sliderMultiplier; //time between droplets
+                //Update beatLength
+                var timing = beatmap.timingPoints.filter(obj => {
+                    return obj.delay < delay
+                });
+                if (timing[0]) beatLength = timing[timing.length - 1].value;
+
                 var repeats = parseInt(line[6]); //How many times the slider will repeat
-                var sliderLength = parseInt(Math.round(line[7])); //How long the slider is
-                var dropletsPerRepeat = parseInt(Math.round(sliderLength));
+                var sliderLength = line[7] / (sliderMultiplier * 100) * beatLength * repeats; //How long the slider is in milliseconds
+                var dropletsPerRepeat = line[7] / 20;
                 var droplets = dropletsPerRepeat * repeats; //amount of droplets slider contains
+                var dropletDelay = sliderLength / droplets;
 
                 var currentDrop = 0;
-
                 for (var i = 0; i < droplets; i++) {
-                    var dropDelay = i * dropletTiming;
                     if (currentDrop == dropletsPerRepeat) {
+                        allFruits.push({
+                            delay: delay + dropletDelay * i,
+                            hitsound: overrideHitsounds ? sliderHitsounds[currentHitsound++] : defaultHitsound
+                        })
 
-                        objectTimestamps.push(delay + dropDelay);
                         currentDrop = 0;
                     }
                     currentDrop++;
                 }
-
-
-
                 //Queues slider-end fruit
-                //console.log(`bl: ${beatLength} slm: ${sliderMultiplier} tot: ${beatLength / 100 / sliderMultiplier * 17} math: ${beatLength}/100*${sliderMultiplier}*17`)
-                objectTimestamps.push(delay + (droplets + 1) * dropletTiming);
+                allFruits.push({
+                    delay: delay + droplets * dropletDelay,
+                    hitsound: overrideHitsounds ? sliderHitsounds[currentHitsound++] : defaultHitsound
+                });
 
             } else if (line[3] != "12") {
                 //Queue a large fruit
-                objectTimestamps.push(delay);
+                allFruits.push({
+                    delay: delay,
+                    hitsound: defaultHitsound
+                });
             }
         })
 
-        return objectTimestamps;
+        return allFruits;
     }
 }

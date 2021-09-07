@@ -22,14 +22,14 @@ fs.readFile(beatmapPath, "utf8", (err, map) => {
 })
 
 function makeVideo(map, audio) {
-    var objectDelays = parseBeatmap(map);
+    var fruits = parseBeatmap(map);
     var left = true;
     var command = "ffmpeg -i intro.mkv ";
     var length = 0;
 
-    for (var i = 1; i < objectDelays.length; i++) {
-        var diff = objectDelays[i] - objectDelays[i - 1];
-        if (!isNaN(diff)) {
+    for (var i = 1; i < fruits.length; i++) {
+        var diff = fruits[i].delay - fruits[i - 1].delay;
+        if (!isNaN(diff) && command.length < 7000) {
             //console.log(diff)
 
             //break intro & outro is 2110ms
