@@ -6,7 +6,6 @@ Random Node.js app that tries to create a video of Lucoa in rhythm to an osu! be
 Note that this project is not finished and will likely never be.
 
 ## To-do
-- Sync the dance better (parse sliders correctly)
 - Automatically add music
 - Add hitsounds
 
