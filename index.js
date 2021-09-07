@@ -51,9 +51,12 @@ function makeVideo(map, audio) {
         }
     }
 
+    //close command
+    command += `-filter_complex "[0][1][2][3]concat=n=${length-1}:v=1:a=0" "${__dirname}/output/${fileName}.mkv"`
 
-    command += `-filter_complex "[0][1][2][3]concat=n=${length-1}:v=1:a=0" "${__dirname}/${fileName}.mkv"`
-    console.log(command.length)
+    //create output dir
+    fs.mkdirSync(`${__dirname}/output`);
+
     exec(command, {
         cwd: __dirname + '/img/small'
     }, function (error, stdout, stderr) {
