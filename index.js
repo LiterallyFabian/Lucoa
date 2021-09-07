@@ -1,8 +1,9 @@
-var exec = require('child_process').exec;
+var fs = require("fs");
+var videoshow = require('videoshow')
+require('./parser')();
 var beatmapPath = process.argv[2];
 var fileName = /[^\\]*$/.exec(beatmapPath)[0].replace(".osu", "");
-var fs = require("fs");
-require('./parser')();
+
 
 console.log(`Trying to create video of beatmap "${fileName}"...`)
 
@@ -24,50 +25,76 @@ fs.readFile(beatmapPath, "utf8", (err, map) => {
 function makeVideo(map, audio) {
     var fruits = parseBeatmap(map);
     var left = true;
-    var command = "ffmpeg -i intro.mkv ";
-    var length = 0;
+    var basePath = "img/";
+    var images = [];
 
     for (var i = 1; i < fruits.length; i++) {
         var diff = fruits[i].delay - fruits[i - 1].delay;
-        if (!isNaN(diff) && command.length < 7000) {
-            //console.log(diff)
+        if (!isNaN(diff)) {
 
-            //break intro & outro is 2110ms
+            //break intro & outro together is 2110ms
+            //if this diff is <= 2110 it's not a break
             if (diff <= 2110) {
-                //not a break - add Lucoa
-                command += `-loop 1 -t ${((diff*0.75)/1000).toFixed(2)} -i ${left ? "L" : "R"}${Math.floor(Math.random() * 6)}.png `
-                command += `-loop 1 -t ${((diff*0.25)/1000).toFixed(2)} -i C${Math.floor(Math.random() * 6)}.png `
-                left = !left;
-                length += 2;
 
-            } else {
-                //break - show image for x seconds
-                command += `-i breakintro.mkv `
-                command += `-loop 1 -t ${(diff/1000)-2.11} -i break.png `
-                command += `-i breakoutro.mkv `
-                length += 3;
+                var imgFlip = left ? "L" : "R";
+                var imgIndex = Math.floor(Math.random() * 6);
+
+                var imagePath = basePath + imgFlip + imgIndex + ".png";
+                var centerPath = `${basePath}C${imgIndex}.png`;
+
+                images.push({
+                    path: imagePath,
+                    loop: (diff * 0.75) / 1000 //75% of the diff converted to seconds
+                })
+                images.push({
+                    path: centerPath,
+                    loop: (diff * 0.25) / 1000
+                })
+                left = !left;
+
+            }
+            //diff > 2110 - show break image
+            else {
+                images.push(
+                    [
+                        basePath + "breakintro.mkv",
+                        {
+                            path: basePath + "break.png",
+                            loop: (diff / 1000) - 2.11
+                        },
+                        basePath + "breakintro.mkv"
+                    ]);
             }
 
         }
     }
 
-    //close command
-    command += `-filter_complex "[0][1][2][3]concat=n=${length-1}:v=1:a=0" "${__dirname}/output/${fileName}.mkv"`
-
     //create output dir
-    fs.mkdirSync(`${__dirname}/output`);
+    var output = `${__dirname}/output`;
+    if (!fs.existsSync(output))
+        fs.mkdirSync(output);
 
-    exec(command, {
-        cwd: __dirname + '/img/small'
-    }, function (error, stdout, stderr) {
-        if (error) {
-            console.log(`error: ${error.message}`);
-            return;
-        }
-        if (stderr) {
-            console.log(`stderr: ${stderr}`);
-            return;
-        }
-        console.log(`stdout: ${stdout}`);
-    });
+    var videoOptions = {
+        fps: 25,
+        transition: false,
+        videoBitrate: 1024,
+        videoCodec: 'libx264',
+        audioBitrate: '128k',
+        audioChannels: 2,
+        format: 'mp4',
+        pixelFormat: 'yuv420p'
+    }
+
+    videoshow(images, videoOptions)
+        .save(`${__dirname}/output/${fileName}.mp4`)
+        .on('start', function (command) {
+            console.log('ffmpeg process started:', command)
+        })
+        .on('error', function (err, stdout, stderr) {
+            console.error('Error:', err)
+            console.error('ffmpeg stderr:', stderr)
+        })
+        .on('end', function (output) {
+            console.error('Video created in:', output)
+        })
 }
